@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "id": "glance-plus",
+  "name": "Glance Plus",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minAndroidSdk": 24,
+  "minAppVersion": "2026.10.36",
+  "entryClass": "glanceplus.GlancePlusPlugin",
+  "description": "At a Glance with room to grow: the same icon, name and value chips over the screensaver, but you choose how wide and tall each chip is and how many lines the text may wrap to.",
+  "author": "vswraith",
+  "license": "MIT",
+  "capabilities": [
+    "overlay",
+    "host.read"
+  ],
+  "icon": "icon.png",
+  "settings": [
+    {
+      "key": "chips",
+      "type": "list",
+      "title": "Chips",
+      "group": "Chips",
+      "addTitle": "Add chip",
+      "maxItems": 12,
+      "minItems": 0,
+      "description": "Home Assistant entities to show, in order. Up to 12 (16 entities at most can be followed).",
+      "row": {
+        "title": "name",
+        "subtitle": "entity",
+        "icon": "icon"
+      },
+      "default": [],
+      "fields": [
+        {
+          "key": "entity",
+          "type": "entity",
+          "title": "Entity",
+          "required": true
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "title": "Name",
+          "description": "Leave empty to use the entity's own name."
+        },
+        {
+          "key": "icon",
+          "type": "icon",
+          "title": "Icon",
+          "description": "Leave empty to use the entity's icon."
+        }
+      ]
+    },
+    {
+      "key": "showOn",
+      "type": "select",
+      "title": "Show",
+      "default": "Screensaver only",
+      "options": [
+        "Screensaver only",
+        "Always"
+      ],
+      "group": "Placement",
+      "description": "Draw the chips only while the screensaver runs, or over the dashboard as well."
+    },
+    {
+      "key": "position",
+      "type": "select",
+      "title": "Position",
+      "default": "Bottom",
+      "options": [
+        "Bottom",
+        "Bottom left",
+        "Bottom right",
+        "Top",
+        "Top left",
+        "Top right",
+        "Left",
+        "Right",
+        "Center"
+      ],
+      "group": "Placement",
+      "description": "Where the block of chips sits."
+    },
+    {
+      "key": "inset",
+      "type": "number",
+      "title": "Distance from the edge",
+      "default": 24,
+      "min": 0,
+      "max": 400,
+      "step": 4,
+      "unit": "dp",
+      "group": "Placement",
+      "description": "Keep the chips this far from the screen edges."
+    },
+    {
+      "key": "columns",
+      "type": "number",
+      "title": "Chips per row",
+      "default": 2,
+      "min": 1,
+      "max": 4,
+      "step": 1,
+      "unit": "",
+      "group": "Size",
+      "description": "How many chips sit side by side before wrapping."
+    },
+    {
+      "key": "chipWidth",
+      "type": "number",
+      "title": "Chip width",
+      "default": 360,
+      "min": 120,
+      "max": 1000,
+      "step": 10,
+      "unit": "dp",
+      "group": "Size",
+      "description": "Width of each chip. With Fit to content on, this is the widest a chip may grow."
+    },
+    {
+      "key": "fitContent",
+      "type": "boolean",
+      "title": "Fit to content",
+      "default": false,
+      "group": "Size",
+      "description": "Let short chips shrink to their text instead of all being the same width."
+    },
+    {
+      "key": "minHeight",
+      "type": "number",
+      "title": "Chip minimum height",
+      "default": 0,
+      "min": 0,
+      "max": 400,
+      "step": 4,
+      "unit": "dp",
+      "group": "Size",
+      "description": "Make every chip at least this tall. 0 lets the text decide."
+    },
+    {
+      "key": "valueLines",
+      "type": "number",
+      "title": "Value lines",
+      "default": 2,
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "unit": "",
+      "group": "Text",
+      "description": "How many lines a value may wrap to before it ends in an ellipsis. The stock row allows one."
+    },
+    {
+      "key": "nameLines",
+      "type": "number",
+      "title": "Name lines",
+      "default": 1,
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "unit": "",
+      "group": "Text",
+      "description": "How many lines a name may wrap to."
+    },
+    {
+      "key": "textScale",
+      "type": "number",
+      "title": "Scale",
+      "default": 100,
+      "min": 50,
+      "max": 250,
+      "step": 5,
+      "unit": "%",
+      "group": "Text",
+      "description": "Scales the whole row: text, icons, padding and chip width."
+    },
+    {
+      "key": "hideNames",
+      "type": "boolean",
+      "title": "Hide names",
+      "default": false,
+      "group": "Text",
+      "description": "Show only the icon and a larger value."
+    },
+    {
+      "key": "monochromeIcons",
+      "type": "boolean",
+      "title": "Monochromatic icons",
+      "default": false,
+      "group": "Style",
+      "description": "Keep every icon circle grey instead of colouring it by state."
+    },
+    {
+      "key": "opacity",
+      "type": "number",
+      "title": "Chip background",
+      "default": 75,
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "group": "Style",
+      "description": "How solid the dark chip behind the text is."
+    }
+  ],
+  "commands": []
+}

@@ -1,0 +1,4 @@
+The files under sdk/ and tools/ come from the Kiosk Satellite plugin template
+(https://github.com/jxlarrea/kiosk-satellite-plugins), which is licensed under
+the Apache License 2.0. They keep their original SPDX headers. The plugin code
+under src/ and tests/ is MIT licensed (see LICENSE).
