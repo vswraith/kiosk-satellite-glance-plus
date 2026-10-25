@@ -97,6 +97,9 @@ public final class GlancePlusPlugin implements KioskPlugin {
     private Runnable poll;
     private String lastStatus = "";
     private int eventsSeen;
+    private int generation;
+    private int created;
+    private int destroyed;
 
     // Touched on the Android main thread only.
     private LinearLayout root;
@@ -179,6 +182,8 @@ public final class GlancePlusPlugin implements KioskPlugin {
         shownNow = false;
     }
 
+    private synchronized void refreshLater() { lastStatus = ""; refresh(); }
+
     private synchronized void setScreensaver(boolean active) {
         screensaver = active;
         refresh();
@@ -218,6 +223,8 @@ public final class GlancePlusPlugin implements KioskPlugin {
             synchronized (GlancePlusPlugin.this) { pendingShow = null; live = host; }
             if (live == null) return;
             OverlaySpec spec = OverlaySpec.at(snapshotLook.anchor).inset(snapshotLook.inset).onTop(true).touchable(false).closeOnBack(false);
+            final int mine;
+            synchronized (GlancePlusPlugin.this) { mine = ++generation; }
             try {
                 live.showOverlay(OVERLAY, spec, new OverlayFactory() {
                     @Override public View create(Context c, KsTheme t) {
@@ -226,10 +233,23 @@ public final class GlancePlusPlugin implements KioskPlugin {
                         root = new LinearLayout(c);
                         root.setOrientation(LinearLayout.VERTICAL);
                         build();
+                        synchronized (GlancePlusPlugin.this) { created++; lastStatus = ""; }
                         return root;
                     }
                     @Override public void onThemeChanged(View view, KsTheme t) { theme = t; build(); }
-                    @Override public void onDestroy(View view) { if (view == root) { root = null; context = null; theme = null; } }
+                    @Override public void onDestroy(View view) {
+                        if (view == root) { root = null; context = null; theme = null; }
+                        synchronized (GlancePlusPlugin.this) {
+                            destroyed++;
+                            // KS removed the current overlay by itself (for example when the screensaver view changed):
+                            // forget it so the next refresh draws it again. A replaced overlay is not the current one.
+                            if (mine == generation) {
+                                shownNow = false;
+                                shownSignature = "";
+                                main.postDelayed(new Runnable() { @Override public void run() { refreshLater(); } }, 1000);
+                            }
+                        }
+                    }
                 });
             } catch (UnsupportedOperationException olderHost) {
                 live.status("Glance Plus needs a Kiosk Satellite with native overlays.", true);
@@ -242,7 +262,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
     private void report(PluginHost current, int ready, boolean show) {
         String text = chips.size() + " chips set, " + ready + " with a value · screensaver " + (screensaver ? "active" : "idle")
                 + " · show: " + (look.always ? "always" : "screensaver only") + " · overlay " + (show ? "on" : "off")
-                + " · " + eventsSeen + " events";
+                + " · " + eventsSeen + " events · drawn " + created + ", removed " + destroyed;
         if (text.equals(lastStatus)) return;
         lastStatus = text;
         try { current.status(text, false); } catch (RuntimeException ignored) {}
