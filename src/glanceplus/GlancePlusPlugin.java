@@ -96,6 +96,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
     private String shownSignature = "";
     private Runnable pendingShow;
     private Runnable poll;
+    private int showDelay = 300;
     private String lastStatus = "";
     private int eventsSeen;
     private int generation;
@@ -169,7 +170,10 @@ public final class GlancePlusPlugin implements KioskPlugin {
         }
         if (event.equals("ks.screensaver.view")) {
             // The screensaver changed what it draws, for example a new slide. Draw the chips on top again.
-            if (look.redraw > 0) redraw();
+            if (look.redraw > 0) {
+                redraw(0);
+                main.postDelayed(new Runnable() { @Override public void run() { redrawAfterSlide(); } }, 1800);
+            }
             return;
         }
         if (!event.startsWith("ks.ha.entity.")) return;
@@ -191,13 +195,19 @@ public final class GlancePlusPlugin implements KioskPlugin {
         shownNow = false;
     }
 
-    /** Draws the overlay again, in case the screensaver now covers it. */
-    private synchronized void redraw() {
+    /** Draws the overlay again, in case the screensaver now covers it. The delay is how long to wait before drawing. */
+    private synchronized void redraw(int delayMs) {
         if (!shownNow) return;
         shownSignature = "";
         lastStatus = "";
+        showDelay = delayMs;
         refresh();
+        showDelay = 300;
     }
+
+    private synchronized void redraw() { redraw(300); }
+
+    private synchronized void redrawAfterSlide() { if (look.redraw > 0) redraw(0); }
 
     private synchronized void refreshLater() { lastStatus = ""; refresh(); }
 
@@ -272,7 +282,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
                 live.status("Glance Plus needs a Kiosk Satellite with native overlays.", true);
             }
         };
-        main.postDelayed(pendingShow, 300);
+        main.postDelayed(pendingShow, showDelay);
     }
 
     /** One line in the plugin's Plugin Manager entry, so a missing chip can be traced without a debugger. */
