@@ -68,7 +68,11 @@ public final class GlancePlusPlugin implements KioskPlugin {
         boolean always;
         String anchor = OverlaySpec.BOTTOM;
 
-        String specKey() { return anchor + "|" + inset; }
+        /** Everything that changes the overlay's size or look. */
+        String signature() {
+            return anchor + "|" + inset + "|" + columns + "|" + chipWidth + "|" + minHeight + "|" + valueLines + "|" + nameLines
+                    + "|" + textScale + "|" + opacity + "|" + fitContent + "|" + hideNames + "|" + mono;
+        }
     }
 
     /** A chip ready to draw. */
@@ -88,7 +92,8 @@ public final class GlancePlusPlugin implements KioskPlugin {
     private Look look = new Look();
     private boolean screensaver;
     private boolean shownNow;
-    private String shownSpec = "";
+    private String shownSignature = "";
+    private Runnable pendingShow;
 
     // Touched on the Android main thread only.
     private LinearLayout root;
@@ -159,28 +164,41 @@ public final class GlancePlusPlugin implements KioskPlugin {
         refresh();
     }
 
-    /** Shows, updates or hides the overlay to match the settings, the screensaver and the entity states. */
+    /**
+     * Shows, replaces or hides the overlay to match the settings, the screensaver and the entity states. The overlay's
+     * size follows its content, and KS only measures it when the view is created, so a change that could resize it
+     * replaces the overlay instead of editing it in place. Changes are coalesced so a burst makes one replacement.
+     */
     private void refresh() {
         PluginHost current = host;
         if (current == null) return;
         List<Card> cards = cards();
         boolean show = !cards.isEmpty() && (look.always || screensaver);
-        Look snapshotLook = look;
         if (!show) {
+            if (pendingShow != null) { main.removeCallbacks(pendingShow); pendingShow = null; }
             if (shownNow) {
                 shownNow = false;
+                shownSignature = "";
                 try { current.hideOverlay(OVERLAY); } catch (UnsupportedOperationException ignored) {}
             }
             return;
         }
-        if (!shownNow || !shownSpec.equals(snapshotLook.specKey())) {
-            shownNow = true;
-            shownSpec = snapshotLook.specKey();
-            drawn = cards;
-            drawnLook = snapshotLook;
+        StringBuilder signature = new StringBuilder(look.signature());
+        for (Card card : cards) signature.append('\n').append(card.name).append('|').append(card.value).append('|').append(card.icon).append('|').append(card.accent);
+        if (shownNow && signature.toString().equals(shownSignature)) return;
+        shownNow = true;
+        shownSignature = signature.toString();
+        drawn = cards;
+        drawnLook = look;
+        if (pendingShow != null) main.removeCallbacks(pendingShow);
+        final Look snapshotLook = look;
+        pendingShow = () -> {
+            PluginHost live;
+            synchronized (GlancePlusPlugin.this) { pendingShow = null; live = host; }
+            if (live == null) return;
             OverlaySpec spec = OverlaySpec.at(snapshotLook.anchor).inset(snapshotLook.inset).onTop(true).touchable(false).closeOnBack(false);
             try {
-                current.showOverlay(OVERLAY, spec, new OverlayFactory() {
+                live.showOverlay(OVERLAY, spec, new OverlayFactory() {
                     @Override public View create(Context c, KsTheme t) {
                         context = c;
                         theme = t;
@@ -190,16 +208,13 @@ public final class GlancePlusPlugin implements KioskPlugin {
                         return root;
                     }
                     @Override public void onThemeChanged(View view, KsTheme t) { theme = t; build(); }
-                    @Override public void onDestroy(View view) { root = null; context = null; theme = null; }
+                    @Override public void onDestroy(View view) { if (view == root) { root = null; context = null; theme = null; } }
                 });
             } catch (UnsupportedOperationException olderHost) {
-                current.status("Glance Plus needs a Kiosk Satellite with native overlays.", true);
+                live.status("Glance Plus needs a Kiosk Satellite with native overlays.", true);
             }
-            return;
-        }
-        final List<Card> next = cards;
-        final Look nextLook = snapshotLook;
-        main.post(() -> { drawn = next; drawnLook = nextLook; build(); });
+        };
+        main.postDelayed(pendingShow, 300);
     }
 
     private List<Card> cards() {
