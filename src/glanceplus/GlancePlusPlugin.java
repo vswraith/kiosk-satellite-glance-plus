@@ -62,6 +62,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
         int textScale = 100;
         int opacity = 75;
         int inset = 24;
+        int redraw = 30;
         boolean fitContent;
         boolean hideNames;
         boolean mono;
@@ -113,6 +114,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
         this.host = host;
         try {
             host.subscribe("screensaver.state");
+            host.subscribe("screensaver.view");
             host.executeCommand("isScreensaverActive", new HashMap<String, Object>(), (ok, data, error) -> {
                 if (ok && data instanceof Boolean) setScreensaver((Boolean) data);
             });
@@ -130,7 +132,9 @@ public final class GlancePlusPlugin implements KioskPlugin {
                         if (ok && data instanceof Boolean) setScreensaver((Boolean) data);
                     });
                 } catch (RuntimeException ignored) {}
-                main.postDelayed(this, 30000);
+                int every;
+                synchronized (GlancePlusPlugin.this) { every = look.redraw; if (every > 0) redraw(); }
+                main.postDelayed(this, every > 0 ? every * 1000L : 30000L);
             }
         };
         main.postDelayed(poll, 30000);
@@ -163,6 +167,11 @@ public final class GlancePlusPlugin implements KioskPlugin {
             setScreensaver(Boolean.TRUE.equals(active));
             return;
         }
+        if (event.equals("ks.screensaver.view")) {
+            // The screensaver changed what it draws, for example a new slide. Draw the chips on top again.
+            if (look.redraw > 0) redraw();
+            return;
+        }
         if (!event.startsWith("ks.ha.entity.")) return;
         String id = event.substring("ks.ha.entity.".length());
         if (!subscribed.contains(id)) return;
@@ -180,6 +189,14 @@ public final class GlancePlusPlugin implements KioskPlugin {
         if (pendingShow != null) main.removeCallbacks(pendingShow);
         host = null;
         shownNow = false;
+    }
+
+    /** Draws the overlay again, in case the screensaver now covers it. */
+    private synchronized void redraw() {
+        if (!shownNow) return;
+        shownSignature = "";
+        lastStatus = "";
+        refresh();
     }
 
     private synchronized void refreshLater() { lastStatus = ""; refresh(); }
@@ -377,6 +394,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
         l.textScale = GlanceFormat.clamp(s.get("textScale"), 50, 250, 100);
         l.opacity = GlanceFormat.clamp(s.get("opacity"), 20, 100, 75);
         l.inset = GlanceFormat.clamp(s.get("inset"), 0, 400, 24);
+        l.redraw = GlanceFormat.clamp(s.get("redraw"), 0, 300, 30);
         l.fitContent = Boolean.TRUE.equals(s.get("fitContent"));
         l.hideNames = Boolean.TRUE.equals(s.get("hideNames"));
         l.mono = Boolean.TRUE.equals(s.get("monochromeIcons"));
