@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "glance-plus",
   "name": "Glance Plus",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "apiVersion": 1,
   "minAndroidSdk": 24,
   "minAppVersion": "2026.10.36",

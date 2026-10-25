@@ -94,6 +94,9 @@ public final class GlancePlusPlugin implements KioskPlugin {
     private boolean shownNow;
     private String shownSignature = "";
     private Runnable pendingShow;
+    private Runnable poll;
+    private String lastStatus = "";
+    private int eventsSeen;
 
     // Touched on the Android main thread only.
     private LinearLayout root;
@@ -114,6 +117,20 @@ public final class GlancePlusPlugin implements KioskPlugin {
             screensaver = true;
         }
         configure(settings);
+        poll = new Runnable() {
+            @Override public void run() {
+                PluginHost live;
+                synchronized (GlancePlusPlugin.this) { live = host; }
+                if (live == null) return;
+                try {
+                    live.executeCommand("isScreensaverActive", new HashMap<String, Object>(), (ok, data, error) -> {
+                        if (ok && data instanceof Boolean) setScreensaver((Boolean) data);
+                    });
+                } catch (RuntimeException ignored) {}
+                main.postDelayed(this, 30000);
+            }
+        };
+        main.postDelayed(poll, 30000);
     }
 
     @Override
@@ -137,6 +154,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
 
     @Override
     public synchronized void onEvent(String event, Map<String, Object> payload) {
+        eventsSeen++;
         if (event.equals("ks.screensaver.state")) {
             Object active = payload.get("active");
             setScreensaver(Boolean.TRUE.equals(active));
@@ -155,6 +173,8 @@ public final class GlancePlusPlugin implements KioskPlugin {
 
     @Override
     public synchronized void stop() {
+        if (poll != null) main.removeCallbacks(poll);
+        if (pendingShow != null) main.removeCallbacks(pendingShow);
         host = null;
         shownNow = false;
     }
@@ -174,6 +194,7 @@ public final class GlancePlusPlugin implements KioskPlugin {
         if (current == null) return;
         List<Card> cards = cards();
         boolean show = !cards.isEmpty() && (look.always || screensaver);
+        report(current, cards.size(), show);
         if (!show) {
             if (pendingShow != null) { main.removeCallbacks(pendingShow); pendingShow = null; }
             if (shownNow) {
@@ -215,6 +236,16 @@ public final class GlancePlusPlugin implements KioskPlugin {
             }
         };
         main.postDelayed(pendingShow, 300);
+    }
+
+    /** One line in the plugin's Plugin Manager entry, so a missing chip can be traced without a debugger. */
+    private void report(PluginHost current, int ready, boolean show) {
+        String text = chips.size() + " chips set, " + ready + " with a value · screensaver " + (screensaver ? "active" : "idle")
+                + " · show: " + (look.always ? "always" : "screensaver only") + " · overlay " + (show ? "on" : "off")
+                + " · " + eventsSeen + " events";
+        if (text.equals(lastStatus)) return;
+        lastStatus = text;
+        try { current.status(text, false); } catch (RuntimeException ignored) {}
     }
 
     private List<Card> cards() {
